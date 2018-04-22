@@ -22,10 +22,19 @@ dtime = 1.0e-4
 
 # --- Material specific parameters:
 
-
+tau = 0.00015
+epsilonb = 0.01
+mu = 1.0
+kappa = 1.8
+delta = 0.02
+aniso = 0.0
+alpha = 0.45
+gamma = 10.0
+teq = 1.0
+theta0 = 0.2
 top = 130
 bottom = 170
-
+seed = 5.0
 # ---Initialize and introduce initial nuclei:
 phi, tempr = nuc_arr_eq(Nx, Ny, seed)
 lap_phi = np.zeros((Nx, Ny))
@@ -37,8 +46,8 @@ epsilon_deriv = np.zeros((Nx, Ny))
 
 # when phi is 0, we are in liquid
 # when phi is 1, we are in solid
-heat_capacity_0 = np.ones((Nx,Ny)) * 2.2e6 # J/ (m^3 K)
-heat_capacity_1 = np.ones((Nx,Ny)) * 2.4e6 # J/ (m^3 K)
+heat_capacity_0 = np.ones((Nx+2,Ny+2)) * 2.2e6 # J/ (m^3 K)
+heat_capacity_1 = np.ones((Nx+2,Ny+2)) * 2.4e6 # J/ (m^3 K)
 
 heat_conductivity_0 = 580 # W/ (m K)
 heat_conductivity_1 = 200 # W/ (m K)
@@ -68,8 +77,10 @@ for istep in range(nstep):
     phi[:top,:] = np.zeros((top,Ny+2))
     phi[bottom+2:,:] = np.zeros((Nx-bottom,Ny+2))
     
-    
-    
+    heat_conductivity = heat_conductivity_0 + phi*heat_conductivity_1
+    tempr_y_gredient = tempr[:-1,:] - tempr[1:,:]
+    heatflow_y = 2*(heat_conductivity[:-1,:]*heat_conductivity[1:,:])*tempr_y_gredient/(heat_conductivity[:-1,:]+heat_conductivity[1:,:])
+    tempr_x_gredient = tempr[:,:-1] - tempr[:,1:]
     
     phi[top,:] = phi[top+1,:]
     phi[bottom+1,:] = phi[bottom,:]
