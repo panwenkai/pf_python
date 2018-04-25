@@ -16,9 +16,9 @@ delta = 1e-9 #m
 
 dx = 1e-9
 dy = 1e-9
-nstep = 100000
-nprint= 50
-dtime = 1.0e-4
+nstep = 2
+nprint= 1
+dtime = 1.0e-11
 
 # --- Material specific parameters:
 
@@ -78,15 +78,17 @@ for istep in range(nstep):
     phi[bottom+2:,:] = np.zeros((Nx-bottom,Ny+2))
     
     heat_conductivity = heat_conductivity_0 + phi*heat_conductivity_1
-    tempr_y_gredient = tempr[:-1,:] - tempr[1:,:]
+    tempr_y_gredient = (tempr[:-1,:] - tempr[1:,:])/dy
     heatflow_y = 2*(heat_conductivity[:-1,:]*heat_conductivity[1:,:])*tempr_y_gredient/(heat_conductivity[:-1,:]+heat_conductivity[1:,:])
-    tempr_x_gredient = tempr[:,:-1] - tempr[:,1:]
+    tempr_x_gredient = (tempr[:,:-1] - tempr[:,1:])/dx
+    heatflow_x = 2*(heat_conductivity[:,:-1]*heat_conductivity[:,1:])*tempr_x_gredient/(heat_conductivity[:,:-1]+heat_conductivity[:,1:])
     
     phi[top,:] = phi[top+1,:]
     phi[bottom+1,:] = phi[bottom,:]
     phiold = np.array(phi)
     
-    lap_phi = (phi[0:-2,1:-1]+phi[2:,1:-1]+phi[1:-1,0:-2]+phi[1:-1,2:]-4.0*phi[1:-1,1:-1])/(dx*dy)
+    #lap_phi = (phi[0:-2,1:-1]+phi[2:,1:-1]+phi[1:-1,0:-2]+phi[1:-1,2:]-4.0*phi[1:-1,1:-1])/(dx*dy)
+    lap_phi = (phi[0:-2,1:-1]+phi[2:,1:-1]-2.0*phi[1:-1,1:-1])/(dy**2) + (phi[1:-1,0:-2]+phi[1:-1,2:]-2.0*phi[1:-1,1:-1])/(dx**2)
     lap_tempr = (tempr[0:-2,1:-1]+tempr[2:,1:-1]+tempr[1:-1,0:-2]+tempr[1:-1,2:]-4.0*tempr[1:-1,1:-1])/(dx*dy)
     term1 = lap_phi - phi[1:-1,1:-1]*(1-phi[1:-1,1:-1])*(1-2*phi[1:-1,1:-1])/(delta**2)
     term1 *= sigma * T_m * mu /L
@@ -97,9 +99,13 @@ for istep in range(nstep):
     phi[bottom+1,:] = phi[bottom,:]
     phi[:top,:] = phiold[:top,:]
     phi[bottom+2:,:] = phiold[bottom+2:,:]
-    tempr[1:-1,1:-1] = tempr[1:-1,1:-1] +dtime*lap_tempr + kappa*(phi[1:-1,1:-1]-phiold[1:-1,1:-1])
     
-    if istep % 100 != 0:
+    net_heatflow_y = (heatflow_y[:-1,:] - heatflow_y[1:,:])*dx # This should be net heat inflow
+    net_heatflow_x = (heatflow_x[:,:-1] - heatflow_x[:,1:])*dy # This should be net heat inflow
+    dtempr_dt = (net_heatflow_y[:,1:-1] + net_heatflow_x[1:-1,:]) / (dx*dy*L)
+    tempr[1:-1,1:-1] = tempr[1:-1,1:-1] +dtime*dtempr_dt + kappa*(phi[1:-1,1:-1]-phiold[1:-1,1:-1])
+    
+    if istep % nprint != 0:
         continue
     print istep
     fig = plt.figure(frameon=False)
